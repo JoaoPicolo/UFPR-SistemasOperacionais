@@ -44,17 +44,17 @@ void queue_print (char *name, queue_t *queue, void print_elem (void*) ) {
 
 int queue_append (queue_t **queue, queue_t *elem) {
     if(queue == NULL) {
-        fprintf(stderr, "Queue doesn't exist");
+        fprintf(stderr, "### ERROR: Queue doesn't exist\n");
         return -1;
     }
 
     if(elem == NULL) {
-        fprintf(stderr, "Element doesn't exist");
+        fprintf(stderr, "### ERROR: Element doesn't exist\n");
         return -1;
     }
 
     if(elem->prev != NULL || elem->next != NULL) {
-        fprintf(stderr, "Element already belongs to another queue");
+        fprintf(stderr, "### ERROR: Element already belongs to a queue\n");
         return -1;
     }
 
@@ -90,16 +90,21 @@ int queue_append (queue_t **queue, queue_t *elem) {
 
 int queue_remove (queue_t **queue, queue_t *elem) {
     if(queue == NULL) {
-        fprintf(stderr, "Queue doesn't exist");
+        fprintf(stderr, "### ERROR: Queue doesn't exist\n");
         return -1;
     }
 
     if(*queue == NULL) {
-        fprintf(stderr, "Queue is empty");
+        fprintf(stderr, "### ERROR: Queue is empty\n");
     }
 
     if(elem == NULL) {
-        fprintf(stderr, "Element doesn't exist");
+        fprintf(stderr, "### ERROR: Element doesn't exist\n");
+        return -1;
+    }
+
+    if(elem->prev == NULL || elem->next == NULL) {
+        fprintf(stderr, "### ERROR: Element doesn't belong to any queue\n");
         return -1;
     }
 
@@ -116,7 +121,7 @@ int queue_remove (queue_t **queue, queue_t *elem) {
     } while(temp != *queue && !elemFound);
 
     if(!elemFound) {
-        fprintf(stderr, "Element doesn't belong to the queue.");
+        fprintf(stderr, "### ERROR: Element doesn't belong to the queue\n");
         return -1;
     }
 

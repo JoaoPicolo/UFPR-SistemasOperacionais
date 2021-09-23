@@ -229,7 +229,7 @@ int main (int argc, char **argv, char **envp)
    printf ("Ok, apos %d remocoes aleatorias a fila ficou vazia\n", N) ;
 
    printf ("Testes de remocao funcionaram!\n") ;
-   return 0;
+
    // PARTE 3: operações inválidas =============================================
 
    // inicializa os N elementos
@@ -309,7 +309,7 @@ int main (int argc, char **argv, char **envp)
    printf ("Ok, retirei e destrui em ordem %d elementos da fila\n", N*N) ;
 
    printf ("Testes de operações inválidas funcionaram!\n") ;
-
+   return 0;
    // PARTE 4: queue_print =====================================================
 
    printf ("Teste do queue_print...\n");

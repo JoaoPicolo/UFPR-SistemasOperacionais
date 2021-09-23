@@ -49,7 +49,7 @@ int queue_append (queue_t **queue, queue_t *elem) {
     }
 
     if(elem == NULL) {
-        fprintf(stderr, "Element is NULL");
+        fprintf(stderr, "Element doesn't exist");
         return -1;
     }
 
@@ -58,6 +58,7 @@ int queue_append (queue_t **queue, queue_t *elem) {
         return -1;
     }
 
+    // Inserts element
     if(*queue == NULL) {
         *queue = elem;
         (*queue)->prev = *queue;
@@ -88,5 +89,56 @@ int queue_append (queue_t **queue, queue_t *elem) {
 // Retorno: 0 se sucesso, <0 se ocorreu algum erro
 
 int queue_remove (queue_t **queue, queue_t *elem) {
+    if(queue == NULL) {
+        fprintf(stderr, "Queue doesn't exist");
+        return -1;
+    }
+
+    if(*queue == NULL) {
+        fprintf(stderr, "Queue is empty");
+    }
+
+    if(elem == NULL) {
+        fprintf(stderr, "Element doesn't exist");
+        return -1;
+    }
+
+    // Check if element belongs to the queue
+    queue_t *temp = *queue;
+    int elemFound = 0;
+    do {
+        if(temp == elem) {
+            // Corrects temp position error, caused by iteration
+            temp = temp->prev;
+            elemFound = 1;
+        }
+        temp = temp->next;
+    } while(temp != *queue && !elemFound);
+
+    if(!elemFound) {
+        fprintf(stderr, "Element doesn't belong to the queue.");
+        return -1;
+    }
+
+
+    // Removes element from queue
+    if(queue_size(*queue) == 1) {
+        *queue = NULL;
+    }
+    else {
+        // If is removing first element, updates pointer as well
+        if(*queue == elem) {
+            *queue = elem->next;
+        }
+
+        // Fix queue remaining pointers
+        elem->prev->next = elem->next;
+        elem->next->prev = elem->prev;
+    }
+
+    // Fix element pointers
+    elem->next = NULL;
+    elem->prev = NULL;
+
     return 0;
 }

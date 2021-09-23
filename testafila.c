@@ -146,7 +146,7 @@ int main (int argc, char **argv, char **envp)
 
    printf ("Testes de insercao funcionaram!\n") ;
 
-   return 0;
+
    // PARTE 2: queue_remove ====================================================
 
    // esvazia fila0, retirando sempre o primeiro elemento
@@ -229,7 +229,7 @@ int main (int argc, char **argv, char **envp)
    printf ("Ok, apos %d remocoes aleatorias a fila ficou vazia\n", N) ;
 
    printf ("Testes de remocao funcionaram!\n") ;
-
+   return 0;
    // PARTE 3: operações inválidas =============================================
 
    // inicializa os N elementos

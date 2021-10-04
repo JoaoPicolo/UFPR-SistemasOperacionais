@@ -8,8 +8,8 @@
 // Thread Stack's size
 #define STACKSIZE 64*1024
 
-task_t mainContext;
-task_t *currentContext;
+task_t mainTask;
+task_t *currentTask;
 long long lastID;
 
 // General functions ==============================================================
@@ -17,12 +17,12 @@ void ppos_init() {
     // Disables stdout buffer, used by printf()
     setvbuf(stdout, 0, _IONBF, 0);
 
-    // Initializes mainContext
-    mainContext.id = 0;                           // Main by default has id = 0
-    getcontext(&(mainContext.context));           // Saves current context
+    // Initializes mainTask
+    mainTask.id = 0;                           // Main by default has id = 0
+    getcontext(&(mainTask.context));           // Saves current context
 
     // Sets main as current context
-    currentContext = &mainContext;
+    currentTask = &mainTask;
 
     // Updates lastID
     lastID = 0;
@@ -74,14 +74,14 @@ int task_create(task_t *task,			        // New task descriptor
 
 void task_exit(int exitCode) {
     #ifdef DEBUG
-    printf("PPOS: switch task %d to main task %d\n", currentContext->id, mainContext.id);
+    printf("PPOS: switch task %d to main task %d\n", currentTask->id, mainTask.id);
     #endif
 
-    task_t temp = *currentContext;
-    currentContext = &mainContext;
+    task_t temp = *currentTask;
+    currentTask = &mainTask;
 
     // Changes the current context to main
-    swapcontext(&(temp.context), &(currentContext->context));
+    swapcontext(&(temp.context), &(currentTask->context));
 }
 
 
@@ -93,11 +93,11 @@ int task_switch(task_t *task) {
     }
 
     #ifdef DEBUG
-    printf("PPOS: switch task %d to task %d\n", currentContext->id, task->id);
+    printf("PPOS: switch task %d to task %d\n", currentTask->id, task->id);
     #endif
 
-    task_t *temp = currentContext;
-    currentContext = task;
+    task_t *temp = currentTask;
+    currentTask = task;
 
     // Saves current context on memory pointed by first parameter
     // then restores to the context saved in the second parameter
@@ -107,5 +107,5 @@ int task_switch(task_t *task) {
 }
 
 int task_id() {
-    return currentContext->id;
+    return currentTask->id;
 }

@@ -10,12 +10,19 @@
 #include <ucontext.h>		// biblioteca POSIX de trocas de contexto
 #include "queue.h"		// biblioteca de filas genéricas
 
+typedef enum task_status_t {
+  READY,
+  COMPLETE,
+  SUSPENDED,
+} task_status_t;
+
 // Estrutura que define um Task Control Block (TCB)
 typedef struct task_t
 {
    struct task_t *prev, *next ;		// ponteiros para usar em filas
    int id ;				                // identificador da tarefa
    ucontext_t context ;			      // contexto armazenado da tarefa
+   task_status_t status;
    // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 

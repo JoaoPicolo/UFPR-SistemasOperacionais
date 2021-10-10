@@ -11,7 +11,7 @@
 task_t mainTask, dispatcherTask;
 task_t *currentTask;
 
-task_t *tasksQueue = NULL, *nextTask = NULL;
+task_t *readyQueue = NULL, *nextTask = NULL;
 
 long long lastID, userTasks;
 
@@ -48,11 +48,23 @@ void ppos_init() {
 
 // Tasks managements ==============================================================
 task_t* scheduler() {
-    if(nextTask == NULL) {
-       return tasksQueue;
-    }
-    
-    return nextTask->next;
+    task_t *highestTask = readyQueue;
+
+    // Checks for highest priority (-20 is highest and 20 is lowest)
+    task_t *temp = readyQueue;
+    do {
+        if(temp->dynamicPriority <= highestTask->dynamicPriority)  {
+            highestTask = temp;
+        }
+
+        // Aging factor is -1
+        temp->dynamicPriority--;
+        temp = temp->next;
+    } while(temp != readyQueue);
+
+    highestTask->dynamicPriority = highestTask->staticPriority;
+
+    return highestTask;
 }
 
 void taskDispatcher() {
@@ -71,7 +83,7 @@ void taskDispatcher() {
                 case COMPLETE:
                     free(nextTask->context.uc_stack.ss_sp);
                     task_t *prevTask = nextTask->prev;
-                    queue_remove((queue_t**)&tasksQueue, (queue_t*)nextTask);
+                    queue_remove((queue_t**)&readyQueue, (queue_t*)nextTask);
                     nextTask = prevTask;
                     #ifdef DEBUG
                     printf("PPOS: task %d with status COMPLETE. Cleaned its stack.\n", nextTask->id);
@@ -135,8 +147,13 @@ int task_create(task_t *task,			        // New task descriptor
         printf("PPOS: appending task %d to queue\n", task->id);
         #endif
 
+        // Set tasks fields
         task->status = READY;
-        queue_append((queue_t **)&tasksQueue, (queue_t*)task);
+        task->staticPriority = 0;
+        task->dynamicPriority = task->staticPriority;
+
+        // Adds tasks to ready tasks queue
+        queue_append((queue_t **)&readyQueue, (queue_t*)task);
 
         // Increments user active tasks
         userTasks++;
@@ -205,4 +222,24 @@ int task_id() {
 // Scaling Functions ==============================================================
 void task_yield() {
     task_switch(&dispatcherTask);
+}
+
+void task_setprio(task_t *task, int prio) {
+    if(task == NULL) {
+        currentTask->staticPriority = prio;
+        currentTask->dynamicPriority = currentTask->staticPriority;
+    }
+    else {
+        task->staticPriority = prio;
+        task->dynamicPriority = task->staticPriority;
+    }
+}
+
+int task_getprio (task_t *task) {
+    if(task == NULL) {
+        return currentTask->staticPriority;
+    }
+    else {
+        return task->staticPriority;
+    }
 }

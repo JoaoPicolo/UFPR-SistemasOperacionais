@@ -11,7 +11,7 @@
 task_t mainTask, dispatcherTask;
 task_t *currentTask;
 
-task_t *readyTasksQueue = NULL, *nextTask = NULL;
+task_t *tasksQueue = NULL, *nextTask = NULL;
 
 long long lastID, userTasks;
 
@@ -49,7 +49,7 @@ void ppos_init() {
 // Tasks managements ==============================================================
 task_t* scheduler() {
     if(nextTask == NULL) {
-       return readyTasksQueue;
+       return tasksQueue;
     }
     
     return nextTask->next;
@@ -71,7 +71,7 @@ void taskDispatcher() {
                 case COMPLETE:
                     free(nextTask->context.uc_stack.ss_sp);
                     task_t *prevTask = nextTask->prev;
-                    queue_remove((queue_t**)&readyTasksQueue, (queue_t*)nextTask);
+                    queue_remove((queue_t**)&tasksQueue, (queue_t*)nextTask);
                     nextTask = prevTask;
                     #ifdef DEBUG
                     printf("PPOS: task %d with status COMPLETE. Cleaned its stack.\n", nextTask->id);
@@ -136,7 +136,7 @@ int task_create(task_t *task,			        // New task descriptor
         #endif
 
         task->status = READY;
-        queue_append((queue_t **)&readyTasksQueue, (queue_t*)task);
+        queue_append((queue_t **)&tasksQueue, (queue_t*)task);
 
         // Increments user active tasks
         userTasks++;

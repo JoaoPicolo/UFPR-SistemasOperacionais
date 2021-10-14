@@ -57,13 +57,18 @@ task_t* scheduler() {
             highestTask = temp;
         }
 
-        // Aging factor is -1
-        temp->dynamicPriority--;
+        // Aging factor is -1, limited to -20
+        if(temp->dynamicPriority > -20) {
+            temp->dynamicPriority--;
+        }
         temp = temp->next;
     } while(temp != readyQueue);
 
-    highestTask->dynamicPriority = highestTask->staticPriority;
+    #ifdef DEBUG
+    printf("PPOS: Scheduler picking task with id %d and priority %d\n", highestTask->id, highestTask->dynamicPriority);
+    #endif
 
+    highestTask->dynamicPriority = highestTask->staticPriority;
     return highestTask;
 }
 
@@ -221,25 +226,49 @@ int task_id() {
 
 // Scaling Functions ==============================================================
 void task_yield() {
+    #ifdef DEBUG
+    printf("PPOS: changing context to dispatcher\n");
+    #endif
+
     task_switch(&dispatcherTask);
 }
 
 void task_setprio(task_t *task, int prio) {
+    if(prio > 20 || prio < -20) {
+        perror("Invalid priority. Value found: %d, expected value be between -20 and 20.\n");
+    }
+
     if(task == NULL) {
         currentTask->staticPriority = prio;
         currentTask->dynamicPriority = currentTask->staticPriority;
+
+        #ifdef DEBUG
+        printf("PPOS: Seeting task with id %d priority to %d\n", currentTask->id, prio);
+        #endif
     }
     else {
         task->staticPriority = prio;
         task->dynamicPriority = task->staticPriority;
+    
+        #ifdef DEBUG
+        printf("PPOS: Seeting task with id %d priority to %d\n", task->id, prio);
+        #endif
     }
 }
 
 int task_getprio (task_t *task) {
     if(task == NULL) {
+        #ifdef DEBUG
+        printf("PPOS: Task with id %d priority is %d\n", currentTask->id, currentTask->staticPriority);
+        #endif
+
         return currentTask->staticPriority;
     }
     else {
+        #ifdef DEBUG
+        printf("PPOS: Task with id %d priority is %d\n", task->id, task->staticPriority);
+        #endif
+
         return task->staticPriority;
     }
 }

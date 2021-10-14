@@ -12,8 +12,6 @@
 #define NULL ((void *) 0)
 #endif
 
-#include <stdio.h>
-
 //------------------------------------------------------------------------------
 // estrutura de uma fila genérica, sem conteúdo definido.
 // Veja um exemplo de uso desta estrutura em testafila.c

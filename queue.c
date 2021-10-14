@@ -1,5 +1,6 @@
 // GRR20182659 João Pedro Picolo
 
+#include <stdio.h>
 #include "queue.h"
 
 int queue_size (queue_t *queue) {

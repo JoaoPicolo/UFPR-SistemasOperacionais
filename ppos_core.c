@@ -11,7 +11,7 @@
 task_t mainTask, dispatcherTask;
 task_t *currentTask;
 
-task_t *readyQueue = NULL, *nextTask = NULL;
+task_t *readyQueue = NULL;
 
 long long lastID, userTasks;
 
@@ -73,6 +73,8 @@ task_t* scheduler() {
 }
 
 void taskDispatcher() {
+    task_t *nextTask = NULL;
+
     while(userTasks > 0) {
         nextTask = scheduler();
 

@@ -1,7 +1,7 @@
 // GRR20182659 João Pedro Picolo
 
 #include <stdlib.h>
-
+#include <stdio.h>
 #include "ppos.h"
 
 // Global variables and definitions ===============================================
@@ -15,38 +15,7 @@ task_t *readyQueue = NULL;
 
 long long lastID, userTasks;
 
-void taskDispatcher();
-
 // General functions ==============================================================
-void ppos_init() {
-    // Disables stdout buffer, used by printf()
-    setvbuf(stdout, 0, _IONBF, 0);
-
-    // Initialize user tasks
-    userTasks = 0;
-
-    // Updates lastID
-    lastID = 0;
-
-    // Initializes mainTask
-    mainTask.id = lastID;                       // Main by default has id = 0
-    getcontext(&(mainTask.context));           // Saves current context
-
-    // Sets main as current context
-    currentTask = &mainTask;
-
-    // Creates dispatcher task
-    task_create(&dispatcherTask, &taskDispatcher, NULL);
-    
-
-    #ifdef DEBUG
-    printf("PPOS: created task dispatcher with id %d\n", dispatcherTask.id);
-    printf("PPOS: system initialized\n");
-    #endif
-}
-
-
-// Tasks managements ==============================================================
 task_t* scheduler() {
     task_t *highestTask = readyQueue;
 
@@ -113,6 +82,35 @@ void taskDispatcher() {
     task_exit(0);
 }
 
+void ppos_init() {
+    // Disables stdout buffer, used by printf()
+    setvbuf(stdout, 0, _IONBF, 0);
+
+    // Initialize user tasks
+    userTasks = 0;
+
+    // Updates lastID
+    lastID = 0;
+
+    // Initializes mainTask
+    mainTask.id = lastID;                       // Main by default has id = 0
+    getcontext(&(mainTask.context));           // Saves current context
+
+    // Sets main as current context
+    currentTask = &mainTask;
+
+    // Creates dispatcher task
+    task_create(&dispatcherTask, &taskDispatcher, NULL);
+    
+
+    #ifdef DEBUG
+    printf("PPOS: created task dispatcher with id %d\n", dispatcherTask.id);
+    printf("PPOS: system initialized\n");
+    #endif
+}
+
+
+// Tasks managements ==============================================================
 int task_create(task_t *task,			        // New task descriptor
                  void (*start_func)(void *),	// Task's body function
                  void *arg) {                   // Task's argument

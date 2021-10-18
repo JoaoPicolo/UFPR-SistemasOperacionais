@@ -1,7 +1,10 @@
 // GRR20182659 João Pedro Picolo
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/time.h>
+
 #include "ppos.h"
 
 // Global variables and definitions ===============================================
@@ -14,6 +17,10 @@ task_t *currentTask;
 task_t *readyQueue = NULL;
 
 long long lastID, userTasks;
+
+// Used for task preemption
+struct sigaction action;
+struct itimerval timer;
 
 // General functions ==============================================================
 task_t* scheduler() {
@@ -82,6 +89,45 @@ void taskDispatcher() {
     task_exit(0);
 }
 
+void tickHandler() {
+    if (!(currentTask->systemTask)) {
+        currentTask->quantum--;
+
+        if(currentTask->quantum == 0) {
+            #ifdef DEBUG
+            printf("PPOS: task %d quantum reached zero\n", currentTask->id);
+            #endif
+            task_yield();
+        }
+    }
+}
+
+void initializeTicker() {
+    action.sa_handler = tickHandler;
+    sigemptyset (&action.sa_mask) ;
+    action.sa_flags = 0 ;
+    if (sigaction(SIGALRM, &action, 0) < 0) {
+        perror("Sigaction error: ");
+        exit(1);
+    }
+
+    // Adjusts timer value
+    timer.it_value.tv_usec = 1000;      // First shot, in microseconds
+    timer.it_value.tv_sec = 0;          // First shot, in seconds
+    timer.it_interval.tv_usec = 1000;   // Following shoots, in microseconds
+    timer.it_interval.tv_sec = 0;       // Following shots, in seconds
+
+    // Sets timer interval to fire at each milisecond
+    if (setitimer(ITIMER_REAL, &timer, 0) < 0) {
+        perror("Setitimer error: ");
+        exit(1);
+    }
+
+    #ifdef DEBUG
+    printf("PPOS: time action initialized\n");
+    #endif
+}
+
 void ppos_init() {
     // Disables stdout buffer, used by printf()
     setvbuf(stdout, 0, _IONBF, 0);
@@ -94,14 +140,17 @@ void ppos_init() {
 
     // Initializes mainTask
     mainTask.id = lastID;                       // Main by default has id = 0
-    getcontext(&(mainTask.context));           // Saves current context
+    mainTask.systemTask = 1;                    // Sets main as system task
+    getcontext(&(mainTask.context));            // Saves current context
 
     // Sets main as current context
     currentTask = &mainTask;
 
     // Creates dispatcher task
     task_create(&dispatcherTask, &taskDispatcher, NULL);
+    dispatcherTask.systemTask = 1;
     
+    initializeTicker();
 
     #ifdef DEBUG
     printf("PPOS: created task dispatcher with id %d\n", dispatcherTask.id);
@@ -144,6 +193,9 @@ int task_create(task_t *task,			        // New task descriptor
     // Asigns the task a id
     lastID++;
     task->id = lastID;
+
+    // Tasks are user tasks by default
+    task->systemTask = 0;
 
     // Inserts task in queue
     // Dispatcher (task->id == 1) can't be inserted
@@ -211,6 +263,10 @@ int task_switch(task_t *task) {
 
     task_t *temp = currentTask;
     currentTask = task;
+    if (!(currentTask->systemTask)) {
+        // Each task has a quantum of 20 each time it gets the processor
+        currentTask->quantum = 20;
+    }
 
     // Saves current context on memory pointed by first parameter
     // then restores to the context saved in the second parameter

@@ -10,7 +10,7 @@
 #define __PPOS_DATA__
 
 #include <ucontext.h>		// POSIX context change library
-#include "queue.h"		  // Generic queue library
+#include "queue.h"		    // Generic queue library
 
 typedef enum task_status_t {
   READY,
@@ -21,13 +21,14 @@ typedef enum task_status_t {
 // Task Control Block (TCB) Struct Definition
 typedef struct task_t
 {
-   struct task_t *prev, *next ;		        // Pointers to be used in queue
-   int id ;				                        // Task identifier
-   ucontext_t context ;			              // Task's stored context
+   struct task_t *prev, *next;		      // Pointers to be used in queue
+   int id;				                  // Task identifier
+   ucontext_t context;			          // Task's stored context
    task_status_t status;                  // Task's system status
    int dynamicPriority, staticPriority;   // Task's priorities
-   // ... (outros campos serão adicionados mais tarde)
-} task_t ;
+   int systemTask;						  // Tells if task belongs to the system or to the user
+   int quantum;							  // Task's quantom for processor use
+} task_t;
 
 // estrutura que define um semáforo
 typedef struct

@@ -28,6 +28,7 @@ typedef struct task_t
    int dynamicPriority, staticPriority;   // Task's priorities
    int systemTask;						  // Tells if task belongs to the system or to the user
    int quantum;							  // Task's quantom for processor use
+   unsigned int startTime, processorTime, activations; // Helper variables to collect statistics about the task
 } task_t;
 
 // estrutura que define um semáforo

@@ -18,6 +18,9 @@ task_t *readyQueue = NULL;
 
 long long lastID, userTasks;
 
+unsigned int systemClock = 0;
+unsigned int taskProcessorTime = 0;
+
 // Used for task preemption
 struct sigaction action;
 struct itimerval timer;
@@ -41,7 +44,8 @@ task_t* scheduler() {
     } while(temp != readyQueue);
 
     #ifdef DEBUG
-    printf("PPOS: Scheduler picking task with id %d and priority %d\n", highestTask->id, highestTask->dynamicPriority);
+    printf("PPOS: Scheduler picking task with id %d and priority %d\n",
+            highestTask->id, highestTask->dynamicPriority);
     #endif
 
     highestTask->dynamicPriority = highestTask->staticPriority;
@@ -90,6 +94,8 @@ void taskDispatcher() {
 }
 
 void tickHandler() {
+    systemClock++;
+
     if (!(currentTask->systemTask)) {
         currentTask->quantum--;
 
@@ -97,6 +103,9 @@ void tickHandler() {
             #ifdef DEBUG
             printf("PPOS: task %d quantum reached zero\n", currentTask->id);
             #endif
+
+            // Increments the time the task spent on processor
+            currentTask->processorTime += systemClock - taskProcessorTime;
             task_yield();
         }
     }
@@ -197,6 +206,11 @@ int task_create(task_t *task,			        // New task descriptor
     // Tasks are user tasks by default
     task->systemTask = 0;
 
+    // Sets up task initialization statistics
+    task->startTime = systemClock;
+    task->processorTime = 0;
+    task->activations = 0;
+
     // Inserts task in queue
     // Dispatcher (task->id == 1) can't be inserted
     if(task->id > 1) {
@@ -241,6 +255,10 @@ void task_exit(int exitCode) {
         currentTask = &dispatcherTask;
     }
 
+    // Prints task statistics, after complete
+    printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n", temp.id,
+            systemClock - temp.startTime, temp.processorTime, temp.activations);
+
     #ifdef DEBUG
     printf("PPOS: switch task %d to task %d\n", temp.id, currentTask->id);
     #endif
@@ -263,10 +281,14 @@ int task_switch(task_t *task) {
 
     task_t *temp = currentTask;
     currentTask = task;
+
     if (!(currentTask->systemTask)) {
         // Each task has a quantum of 20 each time it gets the processor
         currentTask->quantum = 20;
     }
+
+    currentTask->activations++;
+    taskProcessorTime = systemClock;
 
     // Saves current context on memory pointed by first parameter
     // then restores to the context saved in the second parameter
@@ -327,4 +349,9 @@ int task_getprio (task_t *task) {
 
         return task->staticPriority;
     }
+}
+
+// Time management operations =====================================================
+unsigned int systime () {
+    return systemClock;
 }

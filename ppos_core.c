@@ -149,7 +149,7 @@ void ppos_init() {
 
     // Initializes mainTask
     mainTask.id = lastID;                       // Main by default has id = 0
-    mainTask.systemTask = 1;                    // Sets main as system task
+    mainTask.systemTask = 0;                    // Sets main as user task
     getcontext(&(mainTask.context));            // Saves current context
 
     // Sets main as current context

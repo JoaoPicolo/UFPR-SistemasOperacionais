@@ -19,11 +19,16 @@ task_t *readyQueue = NULL;
 long long lastID, userTasks;
 
 unsigned int systemClock = 0;
-unsigned int taskProcessorTime = 0;
 
 // Used for task preemption
 struct sigaction action;
 struct itimerval timer;
+
+
+// Time management operations =====================================================
+unsigned int systime() {
+    return systemClock;
+}
 
 // General functions ==============================================================
 task_t* scheduler() {
@@ -55,12 +60,17 @@ task_t* scheduler() {
 void taskDispatcher() {
     task_t *nextTask = NULL;
 
+    unsigned int t2 = systime();
     while(userTasks > 0) {
         nextTask = scheduler();
 
+        unsigned int t1 = systime();
+        dispatcherTask.processorTime += t1 - t2;
         if(nextTask != NULL) {
             task_switch(nextTask);
 
+            t2 = systime();
+            nextTask->processorTime += t2 - t1;
             switch(nextTask->status) {
                 case READY:
                     #ifdef DEBUG
@@ -104,8 +114,6 @@ void tickHandler() {
             printf("PPOS: task %d quantum reached zero\n", currentTask->id);
             #endif
 
-            // Increments the time the task spent on processor
-            currentTask->processorTime += systemClock - taskProcessorTime;
             task_yield();
         }
     }
@@ -150,6 +158,7 @@ void ppos_init() {
     // Initializes mainTask
     mainTask.id = lastID;                       // Main by default has id = 0
     mainTask.systemTask = 0;                    // Sets main as user task
+    mainTask.quantum = 20;
     getcontext(&(mainTask.context));            // Saves current context
 
     // Sets main as current context
@@ -207,7 +216,7 @@ int task_create(task_t *task,			        // New task descriptor
     task->systemTask = 0;
 
     // Sets up task initialization statistics
-    task->startTime = systemClock;
+    task->startTime = systime();
     task->processorTime = 0;
     task->activations = 0;
 
@@ -288,7 +297,6 @@ int task_switch(task_t *task) {
     }
 
     currentTask->activations++;
-    taskProcessorTime = systemClock;
 
     // Saves current context on memory pointed by first parameter
     // then restores to the context saved in the second parameter
@@ -349,9 +357,4 @@ int task_getprio (task_t *task) {
 
         return task->staticPriority;
     }
-}
-
-// Time management operations =====================================================
-unsigned int systime () {
-    return systemClock;
 }

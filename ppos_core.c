@@ -67,8 +67,8 @@ void taskDispatcher() {
         unsigned int t1 = systime();
         dispatcherTask.processorTime += t1 - t2;
         if(nextTask != NULL) {
-            task_switch(nextTask);
             nextTask->quantum = 20;
+            task_switch(nextTask);
 
             t2 = systime();
             nextTask->processorTime += t2 - t1;
@@ -160,6 +160,7 @@ void ppos_init() {
     mainTask.id = lastID;                       // Main by default has id = 0
     mainTask.systemTask = 0;                    // Sets main as user task
     mainTask.quantum = 20;
+    mainTask.activations = 0;
     getcontext(&(mainTask.context));            // Saves current context
 
     // Sets main as current context

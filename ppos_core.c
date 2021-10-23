@@ -250,11 +250,17 @@ int task_create(task_t *task,			        // New task descriptor
 
 
 void task_exit(int exitCode) {
-    task_t temp = *currentTask;
+    // Prints task statistics, after complete
+    printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n", currentTask->id,
+            systime() - currentTask->startTime, currentTask->processorTime, currentTask->activations);
 
     // If exits from dispatcher, goes to main
     if(currentTask == &dispatcherTask) {
-        currentTask = &mainTask;
+        #ifdef DEBUG
+        printf("PPOS: switch task %d to task %d\n", current->id, mainTask.id);
+        #endif
+
+        task_switch(&mainTask);
     }
     else {
         // Decrement user active tasks
@@ -263,19 +269,12 @@ void task_exit(int exitCode) {
         // Changes task status to complete
         currentTask->status = COMPLETE;
 
-        currentTask = &dispatcherTask;
+        #ifdef DEBUG
+        printf("PPOS: switch task %d to task %d\n", current->id, dispatcherTask.id);
+        #endif
+
+        task_switch(&dispatcherTask);
     }
-
-    // Prints task statistics, after complete
-    printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n", temp.id,
-            systemClock - temp.startTime, temp.processorTime, temp.activations);
-
-    #ifdef DEBUG
-    printf("PPOS: switch task %d to task %d\n", temp.id, currentTask->id);
-    #endif
-
-    // Changes the current context to main
-    swapcontext(&(temp.context), &(currentTask->context));
 }
 
 

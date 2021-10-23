@@ -68,6 +68,7 @@ void taskDispatcher() {
         dispatcherTask.processorTime += t1 - t2;
         if(nextTask != NULL) {
             task_switch(nextTask);
+            nextTask->quantum = 20;
 
             t2 = systime();
             nextTask->processorTime += t2 - t1;
@@ -290,11 +291,6 @@ int task_switch(task_t *task) {
 
     task_t *temp = currentTask;
     currentTask = task;
-
-    if (!(currentTask->systemTask)) {
-        // Each task has a quantum of 20 each time it gets the processor
-        currentTask->quantum = 20;
-    }
 
     currentTask->activations++;
 

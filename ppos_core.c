@@ -16,7 +16,7 @@ task_t *currentTask;
 
 task_t *readyQueue = NULL;
 
-long long lastID, userTasks;
+long long lastID = 0, userTasks = 0;
 
 unsigned int systemClock = 0;
 
@@ -146,24 +146,34 @@ void initializeTicker() {
     #endif
 }
 
+void createMain() {
+    // Initializes mainTask
+    mainTask.id = lastID;
+    mainTask.systemTask = 0;
+    mainTask.quantum = 20;
+
+    mainTask.startTime = systime();
+    mainTask.processorTime = 0;
+    mainTask.activations = 0;
+
+    getcontext(&(mainTask.context));
+
+    // Set mainTask fields
+    mainTask.status = READY;
+    mainTask.staticPriority = 0;
+    mainTask.dynamicPriority = mainTask.staticPriority;
+
+    userTasks++;
+
+    // Adds main to ready queue
+    queue_append((queue_t **)&readyQueue, (queue_t*)&mainTask);
+}
+
 void ppos_init() {
     // Disables stdout buffer, used by printf()
     setvbuf(stdout, 0, _IONBF, 0);
 
-    // Initialize user tasks
-    userTasks = 0;
-
-    // Updates lastID
-    lastID = 0;
-
-    // Initializes mainTask
-    mainTask.id = lastID;                       // Main by default has id = 0
-    mainTask.systemTask = 0;                    // Sets main as user task
-    mainTask.quantum = 20;
-    mainTask.activations = 0;
-    getcontext(&(mainTask.context));            // Saves current context
-
-    // Sets main as current context
+    createMain();
     currentTask = &mainTask;
 
     // Creates dispatcher task
@@ -171,6 +181,9 @@ void ppos_init() {
     dispatcherTask.systemTask = 1;
     
     initializeTicker();
+
+    // Initializes dispatcher
+    task_yield();
 
     #ifdef DEBUG
     printf("PPOS: created task dispatcher with id %d\n", dispatcherTask.id);
@@ -254,6 +267,9 @@ void task_exit(int exitCode) {
     printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n", currentTask->id,
             systime() - currentTask->startTime, currentTask->processorTime, currentTask->activations);
 
+    // Decrement user active tasks
+    userTasks--;
+
     // If exits from dispatcher, goes to main
     if(currentTask == &dispatcherTask) {
         #ifdef DEBUG
@@ -263,9 +279,6 @@ void task_exit(int exitCode) {
         task_switch(&mainTask);
     }
     else {
-        // Decrement user active tasks
-        userTasks--;
-
         // Changes task status to complete
         currentTask->status = COMPLETE;
 

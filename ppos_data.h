@@ -14,21 +14,22 @@
 
 typedef enum task_status_t {
   READY,
-  COMPLETE,
+  COMPLETED,
   SUSPENDED,
 } task_status_t;
 
 // Task Control Block (TCB) Struct Definition
-typedef struct task_t
-{
-   struct task_t *prev, *next;		      // Pointers to be used in queue
-   int id;				                  // Task identifier
-   ucontext_t context;			          // Task's stored context
-   task_status_t status;                  // Task's system status
-   int dynamicPriority, staticPriority;   // Task's priorities
-   int systemTask;						  // Tells if task belongs to the system or to the user
-   int quantum;							  // Task's quantom for processor use
-   unsigned int startTime, processorTime, activations; // Helper variables to collect statistics about the task
+typedef struct task_t {
+  struct task_t *prev, *next;		      // Pointers to be used in queue
+  int id;				                  // Task identifier
+  ucontext_t context;			          // Task's stored context
+  task_status_t status;                  // Task's system status
+  int dynamicPriority, staticPriority;   // Task's priorities
+  int systemTask;						  // Tells if task belongs to the system or to the user
+  int quantum;							  // Task's quantom for processor use
+  unsigned int startTime, processorTime, activations; // Helper variables to collect statistics about the task
+  struct task_t *suspendedQueue;
+  int exitCode;
 } task_t;
 
 // estrutura que define um semáforo

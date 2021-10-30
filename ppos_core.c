@@ -57,6 +57,18 @@ task_t* scheduler() {
     return highestTask;
 }
 
+void completeTask(task_t *nextTask) {
+    free(nextTask->context.uc_stack.ss_sp);
+
+    task_t *prevTask = nextTask->prev;
+    queue_remove((queue_t**)&readyQueue, (queue_t*)nextTask);
+    nextTask = prevTask;
+
+    #ifdef DEBUG
+    printf("PPOS: task %d with status COMPLETED. Cleaned its stack.\n", nextTask->id);
+    #endif
+}
+
 void taskDispatcher() {
     task_t *nextTask = NULL;
 
@@ -78,14 +90,8 @@ void taskDispatcher() {
                     printf("PPOS: task %d with status READY\n", nextTask->id);
                     #endif
                     break;
-                case COMPLETE:
-                    free(nextTask->context.uc_stack.ss_sp);
-                    task_t *prevTask = nextTask->prev;
-                    queue_remove((queue_t**)&readyQueue, (queue_t*)nextTask);
-                    nextTask = prevTask;
-                    #ifdef DEBUG
-                    printf("PPOS: task %d with status COMPLETE. Cleaned its stack.\n", nextTask->id);
-                    #endif
+                case COMPLETED:
+                    completeTask(nextTask);
                     break;
                 case SUSPENDED:
                     #ifdef DEBUG
@@ -162,6 +168,8 @@ void createMain() {
     mainTask.status = READY;
     mainTask.staticPriority = 0;
     mainTask.dynamicPriority = mainTask.staticPriority;
+    mainTask.suspendedQueue = NULL;
+    mainTask.exitCode = -1;
 
     userTasks++;
 
@@ -235,6 +243,9 @@ int task_create(task_t *task,			        // New task descriptor
     task->processorTime = 0;
     task->activations = 0;
 
+    task->suspendedQueue = NULL;
+    task->exitCode = -1;
+
     // Inserts task in queue
     // Dispatcher (task->id == 1) can't be inserted
     if(task->id > 1) {
@@ -261,6 +272,23 @@ int task_create(task_t *task,			        // New task descriptor
     return task->id;
 }			
 
+void freeSuspendedQueue() {
+    task_t *temp = currentTask->suspendedQueue;
+
+    // Checks if queue has values to be removed
+    if(temp != NULL) {
+        do {
+            // Removes from suspendend queue
+            queue_remove((queue_t**)&(currentTask->suspendedQueue), (queue_t*)temp);
+
+            // Marks as ready and returns to ready queue
+            temp->status = READY;
+            queue_append((queue_t **)&readyQueue, (queue_t*)temp);
+
+            temp = temp->next;
+        } while(temp != readyQueue);
+    }
+}
 
 void task_exit(int exitCode) {
     // Prints task statistics, after complete
@@ -279,8 +307,9 @@ void task_exit(int exitCode) {
         task_switch(&mainTask);
     }
     else {
-        // Changes task status to complete
-        currentTask->status = COMPLETE;
+        freeSuspendedQueue();
+        currentTask->exitCode = exitCode;
+        currentTask->status = COMPLETED;
 
         #ifdef DEBUG
         printf("PPOS: switch task %d to task %d\n", current->id, dispatcherTask.id);
@@ -366,4 +395,27 @@ int task_getprio (task_t *task) {
 
         return task->staticPriority;
     }
+}
+
+// Synchronization Operations =====================================================
+int task_join(task_t *task) {
+    if(task == NULL) {
+        return -1;
+    }
+
+    if(task->status == COMPLETED) {
+        return -1;
+    }
+
+    // Removes current task from ready queue and marks as suspended
+    queue_remove((queue_t**)&readyQueue, (queue_t*)currentTask);
+    currentTask->status = SUSPENDED;
+
+    // Adds current task to task's suspended queue
+    queue_append((queue_t **)&(task->suspendedQueue), (queue_t*)currentTask);
+
+    // Dispatcher decides the next task to be executed
+    task_yield();
+
+    return task->exitCode;
 }

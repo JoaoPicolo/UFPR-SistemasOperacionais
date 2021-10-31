@@ -37,7 +37,7 @@ void Body (void * arg)
       printf ("%s: %d\n", (char *) arg, i) ;
       hardwork (WORKLOAD) ;
    }
-   printf ("%s: fim %d\n", (char *) arg) ;
+   printf ("%s: fim\n", (char *) arg) ;
    task_exit (task_id()) ;
 }
 

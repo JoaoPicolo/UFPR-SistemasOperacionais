@@ -276,17 +276,15 @@ void freeSuspendedQueue() {
     task_t *temp = currentTask->suspendedQueue;
 
     // Checks if queue has values to be removed
-    if(temp != NULL) {
-        do {
-            // Removes from suspendend queue
-            queue_remove((queue_t**)&(currentTask->suspendedQueue), (queue_t*)temp);
+    while(temp != NULL) {
+        // Removes from suspendend queue
+        queue_remove((queue_t**)&(currentTask->suspendedQueue), (queue_t*)temp);
 
-            // Marks as ready and returns to ready queue
-            temp->status = READY;
-            queue_append((queue_t **)&readyQueue, (queue_t*)temp);
+        // Marks as ready and returns to ready queue
+        temp->status = READY;
+        queue_append((queue_t **)&readyQueue, (queue_t*)temp);
 
-            temp = temp->next;
-        } while(temp != readyQueue);
+        temp = currentTask->suspendedQueue;
     }
 }
 

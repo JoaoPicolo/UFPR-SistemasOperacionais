@@ -14,7 +14,7 @@
 task_t mainTask, dispatcherTask;
 task_t *currentTask;
 
-task_t *readyQueue = NULL;
+task_t *readyQueue = NULL, *sleepingQueue = NULL;
 
 long long lastID = 0, userTasks = 0;
 
@@ -30,30 +30,44 @@ unsigned int systime() {
     return systemClock;
 }
 
+void task_sleep(int t) {
+    currentTask->status = SLEEPING;
+    currentTask->awakeTime = systime() + t;
+    queue_remove((queue_t**)&readyQueue, (queue_t*)currentTask);
+    queue_append((queue_t **)&sleepingQueue, (queue_t*)currentTask);
+
+    task_yield();
+}
+
 // General functions ==============================================================
 task_t* scheduler() {
     task_t *highestTask = readyQueue;
 
     // Checks for highest priority (-20 is highest and 20 is lowest)
     task_t *temp = readyQueue;
-    do {
-        if(temp->dynamicPriority <= highestTask->dynamicPriority)  {
-            highestTask = temp;
-        }
+    if(temp != NULL) {
+        do {
+            if(temp->dynamicPriority <= highestTask->dynamicPriority)  {
+                highestTask = temp;
+            }
 
-        // Aging factor is -1, limited to -20
-        if(temp->dynamicPriority > -20) {
-            temp->dynamicPriority--;
-        }
-        temp = temp->next;
-    } while(temp != readyQueue);
+            // Aging factor is -1, limited to -20
+            if(temp->dynamicPriority > -20) {
+                temp->dynamicPriority--;
+            }
+            temp = temp->next;
+        } while(temp != readyQueue);
+    }
 
     #ifdef DEBUG
     printf("PPOS: Scheduler picking task with id %d and priority %d\n",
             highestTask->id, highestTask->dynamicPriority);
     #endif
 
-    highestTask->dynamicPriority = highestTask->staticPriority;
+    if(highestTask != NULL) {
+        highestTask->dynamicPriority = highestTask->staticPriority;
+    }
+
     return highestTask;
 }
 
@@ -69,11 +83,33 @@ void completeTask(task_t *nextTask) {
     #endif
 }
 
+void awakeTasks() {
+    task_t *temp = sleepingQueue;
+
+    if(temp != NULL) {
+        do {
+            task_t *aux = temp->next;
+
+            if(temp->awakeTime <= systime()) {
+                temp->status = READY;
+                int a = queue_remove((queue_t**)&sleepingQueue, (queue_t*)temp);
+                int b = queue_append((queue_t **)&readyQueue, (queue_t*)temp);
+                if(a < 0 || b < 0) {
+                    exit(0);
+                }
+            }
+
+            temp = aux;
+        } while(sleepingQueue != NULL && temp != sleepingQueue);
+    }
+}
+
 void taskDispatcher() {
     task_t *nextTask = NULL;
 
-    unsigned int t2 = systime();
     while(userTasks > 0) {
+        unsigned int t2 = systime();
+        awakeTasks();
         nextTask = scheduler();
 
         unsigned int t1 = systime();
@@ -85,18 +121,8 @@ void taskDispatcher() {
             t2 = systime();
             nextTask->processorTime += t2 - t1;
             switch(nextTask->status) {
-                case READY:
-                    #ifdef DEBUG
-                    printf("PPOS: task %d with status READY\n", nextTask->id);
-                    #endif
-                    break;
                 case COMPLETED:
                     completeTask(nextTask);
-                    break;
-                case SUSPENDED:
-                    #ifdef DEBUG
-                    printf("PPOS: task %d with status SUSPENDED\n", nextTask->id);
-                    #endif
                     break;
                 default:
                     #ifdef DEBUG

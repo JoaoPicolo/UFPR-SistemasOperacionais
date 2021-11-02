@@ -92,11 +92,8 @@ void awakeTasks() {
 
             if(temp->awakeTime <= systime()) {
                 temp->status = READY;
-                int a = queue_remove((queue_t**)&sleepingQueue, (queue_t*)temp);
-                int b = queue_append((queue_t **)&readyQueue, (queue_t*)temp);
-                if(a < 0 || b < 0) {
-                    exit(0);
-                }
+                queue_remove((queue_t**)&sleepingQueue, (queue_t*)temp);
+                queue_append((queue_t **)&readyQueue, (queue_t*)temp);
             }
 
             temp = aux;

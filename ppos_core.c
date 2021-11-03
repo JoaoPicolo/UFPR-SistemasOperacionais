@@ -92,6 +92,7 @@ void awakeTasks() {
 
             if(temp->awakeTime <= systime()) {
                 temp->status = READY;
+                temp->dynamicPriority = temp->staticPriority;
                 queue_remove((queue_t**)&sleepingQueue, (queue_t*)temp);
                 queue_append((queue_t **)&readyQueue, (queue_t*)temp);
             }
@@ -305,6 +306,7 @@ void freeSuspendedQueue() {
 
         // Marks as ready and returns to ready queue
         temp->status = READY;
+        temp->dynamicPriority = temp->staticPriority;
         queue_append((queue_t **)&readyQueue, (queue_t*)temp);
 
         temp = currentTask->suspendedQueue;

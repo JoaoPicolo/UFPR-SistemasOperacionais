@@ -31,10 +31,14 @@ unsigned int systime() {
 }
 
 void task_sleep(int t) {
+    currentTask->blockingPreemption = 1;
+
     currentTask->status = SLEEPING;
     currentTask->awakeTime = systime() + t;
     queue_remove((queue_t**)&readyQueue, (queue_t*)currentTask);
     queue_append((queue_t **)&sleepingQueue, (queue_t*)currentTask);
+
+    currentTask->blockingPreemption = 0;
 
     task_yield();
 }
@@ -140,7 +144,7 @@ void tickHandler() {
     if (!(currentTask->systemTask)) {
         currentTask->quantum--;
 
-        if(currentTask->quantum == 0) {
+        if(!currentTask->blockingPreemption && currentTask->quantum <= 0) {
             #ifdef DEBUG
             printf("PPOS: task %d quantum reached zero\n", currentTask->id);
             #endif
@@ -185,6 +189,7 @@ void createMain() {
     mainTask.startTime = systime();
     mainTask.processorTime = 0;
     mainTask.activations = 0;
+    mainTask.blockingPreemption = 0;
 
     getcontext(&(mainTask.context));
 
@@ -266,6 +271,7 @@ int task_create(task_t *task,			        // New task descriptor
     task->startTime = systime();
     task->processorTime = 0;
     task->activations = 0;
+    task->blockingPreemption = 0;
 
     task->suspendedQueue = NULL;
     task->exitCode = -1;
@@ -330,9 +336,13 @@ void task_exit(int exitCode) {
         task_switch(&mainTask);
     }
     else {
+        currentTask->blockingPreemption = 1;
+
         freeSuspendedQueue();
         currentTask->exitCode = exitCode;
         currentTask->status = COMPLETED;
+
+        currentTask->blockingPreemption = 0;
 
         #ifdef DEBUG
         printf("PPOS: switch task %d to task %d\n", current->id, dispatcherTask.id);
@@ -403,7 +413,7 @@ void task_setprio(task_t *task, int prio) {
     }
 }
 
-int task_getprio (task_t *task) {
+int task_getprio(task_t *task) {
     if(task == NULL) {
         #ifdef DEBUG
         printf("PPOS: Task with id %d priority is %d\n", currentTask->id, currentTask->staticPriority);
@@ -422,11 +432,15 @@ int task_getprio (task_t *task) {
 
 // Synchronization Operations =====================================================
 int task_join(task_t *task) {
+    currentTask->blockingPreemption = 1;
+
     if(task == NULL) {
+        currentTask->blockingPreemption = 0;
         return -1;
     }
 
     if(task->status == COMPLETED) {
+        currentTask->blockingPreemption = 0;
         return -1;
     }
 
@@ -436,6 +450,8 @@ int task_join(task_t *task) {
 
     // Adds current task to task's suspended queue
     queue_append((queue_t **)&(task->suspendedQueue), (queue_t*)currentTask);
+
+    currentTask->blockingPreemption = 0;
 
     // Dispatcher decides the next task to be executed
     task_yield();

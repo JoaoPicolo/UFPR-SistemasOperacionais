@@ -32,6 +32,7 @@ typedef struct task_t {
   struct task_t *suspendedQueue;          // Task's waintg to be awaked
   int exitCode;                           // Task's exit code
   int awakeTime;                          // If task sleeps, when it should be awaked
+  int blockingPreemption;                 // Task is doing blocking other tasks
 } task_t;
 
 // estrutura que define um semáforo

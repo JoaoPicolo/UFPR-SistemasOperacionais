@@ -35,10 +35,12 @@ typedef struct task_t {
   int blockingPreemption;                 // Task is doing blocking other tasks
 } task_t;
 
-// estrutura que define um semáforo
-typedef struct
-{
-  // preencher quando necessário
+// Semaphore struct definition
+typedef struct {
+  int count;
+  int exitCode;
+  int initialized;
+  struct task_t *semQueue;
 } semaphore_t ;
 
 // estrutura que define um mutex

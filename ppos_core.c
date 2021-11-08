@@ -24,6 +24,8 @@ unsigned int systemClock = 0;
 struct sigaction action;
 struct itimerval timer;
 
+int lockSemaphore = 0;
+
 
 // Time management operations =====================================================
 unsigned int systime() {
@@ -35,6 +37,7 @@ void task_sleep(int t) {
 
     currentTask->status = SLEEPING;
     currentTask->awakeTime = systime() + t;
+    currentTask->dynamicPriority = currentTask->staticPriority;
     queue_remove((queue_t**)&readyQueue, (queue_t*)currentTask);
     queue_append((queue_t **)&sleepingQueue, (queue_t*)currentTask);
 
@@ -96,7 +99,6 @@ void awakeTasks() {
 
             if(temp->awakeTime <= systime()) {
                 temp->status = READY;
-                temp->dynamicPriority = temp->staticPriority;
                 queue_remove((queue_t**)&sleepingQueue, (queue_t*)temp);
                 queue_append((queue_t **)&readyQueue, (queue_t*)temp);
             }
@@ -312,7 +314,6 @@ void freeSuspendedQueue() {
 
         // Marks as ready and returns to ready queue
         temp->status = READY;
-        temp->dynamicPriority = temp->staticPriority;
         queue_append((queue_t **)&readyQueue, (queue_t*)temp);
 
         temp = currentTask->suspendedQueue;
@@ -447,6 +448,7 @@ int task_join(task_t *task) {
     // Removes current task from ready queue and marks as suspended
     queue_remove((queue_t**)&readyQueue, (queue_t*)currentTask);
     currentTask->status = SUSPENDED;
+    currentTask->dynamicPriority = currentTask->staticPriority;
 
     // Adds current task to task's suspended queue
     queue_append((queue_t **)&(task->suspendedQueue), (queue_t*)currentTask);
@@ -457,4 +459,142 @@ int task_join(task_t *task) {
     task_yield();
 
     return task->exitCode;
+}
+
+// IPC Operations =================================================================
+
+// Atomic operations used for mutual exclusion
+void enter_cs(int *lockSemaphore) {
+  while (__sync_fetch_and_or(lockSemaphore, 1));   // busy waiting
+}
+ 
+void leave_cs(int *lockSemaphore) {
+  (*lockSemaphore) = 0;
+}
+
+int sem_create(semaphore_t *s, int value) {
+    currentTask->blockingPreemption = 1;
+
+    if (s == NULL) {
+        currentTask->blockingPreemption = 0;
+        return -1;
+    }
+
+    if (s->initialized) {
+        currentTask->blockingPreemption = 0;
+        return -1;
+    }
+
+    enter_cs(&lockSemaphore);
+    s->count = value;
+    s->semQueue = NULL;
+    s->exitCode = 0;
+    s->initialized = 1;
+    leave_cs(&lockSemaphore);
+
+    currentTask->blockingPreemption = 0;
+    return 0;
+}
+
+int sem_down(semaphore_t *s) {
+    currentTask->blockingPreemption = 1;
+
+    if (s == NULL) {
+        currentTask->blockingPreemption = 0;
+        return -1;
+    }
+
+    if (s->exitCode == -1 || s->initialized == 0) {
+        currentTask->blockingPreemption = 0;
+        return -1;
+    }
+    
+    enter_cs(&lockSemaphore);
+    s->count--;
+    leave_cs(&lockSemaphore);
+
+    if (s->count < 0) {
+        queue_remove((queue_t**)&readyQueue, (queue_t*)currentTask);
+        currentTask->status = SUSPENDED;
+        currentTask->dynamicPriority = currentTask->staticPriority;
+
+        // Adds current task to task's semaphore queue
+        enter_cs(&lockSemaphore);
+        queue_append((queue_t **)&(s->semQueue), (queue_t*)currentTask);
+        leave_cs(&lockSemaphore);
+        
+
+        task_yield();
+    }
+    
+    currentTask->blockingPreemption = 0;
+    return s->exitCode;
+}
+
+int sem_up(semaphore_t *s) {
+    currentTask->blockingPreemption = 1;
+
+    if (s == NULL) {
+        currentTask->blockingPreemption = 0;
+        return -1;
+    }
+
+    if (s->exitCode == -1 || s->initialized == 0) {
+        currentTask->blockingPreemption = 0;
+        return -1;
+    }
+
+    enter_cs(&lockSemaphore);
+    s->count++;
+    leave_cs(&lockSemaphore);
+    if(s->count <= 0) {
+        enter_cs(&lockSemaphore);
+        task_t *first = s->semQueue;
+        queue_remove((queue_t**)&(s->semQueue), (queue_t*)first);
+        leave_cs(&lockSemaphore);
+
+        first->status = READY;
+        queue_append((queue_t **)&readyQueue, (queue_t*)first);
+    }
+
+    currentTask->blockingPreemption = 0;
+    return 0;
+}
+
+void freeSemaphoreQueue(semaphore_t *s) {
+    task_t *temp = s->semQueue;
+
+    // Checks if queue has values to be removed
+    while(temp != NULL) {
+        // Removes from semaphore queue
+        queue_remove((queue_t**)&(s->semQueue), (queue_t*)temp);
+
+        // Marks as ready and returns to ready queue
+        temp->status = READY;
+        queue_append((queue_t **)&readyQueue, (queue_t*)temp);
+
+        temp = s->semQueue;
+    }
+}
+
+int sem_destroy(semaphore_t *s) {
+    currentTask->blockingPreemption = 1;
+
+    if (s == NULL) {
+        currentTask->blockingPreemption = 0;
+        return -1;
+    }
+
+    if (s->exitCode == -1 || s->initialized == 0) {
+        currentTask->blockingPreemption = 0;
+        return -1;
+    }
+
+    enter_cs(&lockSemaphore);
+    freeSemaphoreQueue(s);
+    s->exitCode = -1;
+    leave_cs(&lockSemaphore);
+
+    currentTask->blockingPreemption = 0;
+    return 0;
 }

@@ -40,6 +40,7 @@ typedef struct {
   int count;
   int exitCode;
   int initialized;
+  int locked;
   struct task_t *semQueue;
 } semaphore_t ;
 

@@ -24,8 +24,6 @@ unsigned int systemClock = 0;
 struct sigaction action;
 struct itimerval timer;
 
-int lockSemaphore = 0;
-
 
 // Time management operations =====================================================
 unsigned int systime() {
@@ -485,12 +483,11 @@ int sem_create(semaphore_t *s, int value) {
         return -1;
     }
 
-    enter_cs(&lockSemaphore);
     s->count = value;
     s->semQueue = NULL;
     s->exitCode = 0;
     s->initialized = 1;
-    leave_cs(&lockSemaphore);
+    s->locked = 0;
 
     currentTask->blockingPreemption = 0;
     return 0;
@@ -509,22 +506,21 @@ int sem_down(semaphore_t *s) {
         return -1;
     }
     
-    enter_cs(&lockSemaphore);
+    enter_cs(&(s->locked));
     s->count--;
-    leave_cs(&lockSemaphore);
-
     if (s->count < 0) {
         queue_remove((queue_t**)&readyQueue, (queue_t*)currentTask);
         currentTask->status = SUSPENDED;
         currentTask->dynamicPriority = currentTask->staticPriority;
 
         // Adds current task to task's semaphore queue
-        enter_cs(&lockSemaphore);
         queue_append((queue_t **)&(s->semQueue), (queue_t*)currentTask);
-        leave_cs(&lockSemaphore);
-        
+        leave_cs(&(s->locked));
 
         task_yield();
+    }
+    else {
+        leave_cs(&(s->locked));
     }
     
     currentTask->blockingPreemption = 0;
@@ -544,18 +540,16 @@ int sem_up(semaphore_t *s) {
         return -1;
     }
 
-    enter_cs(&lockSemaphore);
+    enter_cs(&(s->locked));
     s->count++;
-    leave_cs(&lockSemaphore);
     if(s->count <= 0) {
-        enter_cs(&lockSemaphore);
         task_t *first = s->semQueue;
         queue_remove((queue_t**)&(s->semQueue), (queue_t*)first);
-        leave_cs(&lockSemaphore);
 
         first->status = READY;
         queue_append((queue_t **)&readyQueue, (queue_t*)first);
     }
+    leave_cs(&(s->locked));
 
     currentTask->blockingPreemption = 0;
     return 0;
@@ -590,10 +584,10 @@ int sem_destroy(semaphore_t *s) {
         return -1;
     }
 
-    enter_cs(&lockSemaphore);
+    enter_cs(&(s->locked));
     freeSemaphoreQueue(s);
     s->exitCode = -1;
-    leave_cs(&lockSemaphore);
+    leave_cs(&(s->locked));
 
     currentTask->blockingPreemption = 0;
     return 0;

@@ -68,6 +68,8 @@ int main(int argc, char *argv[]) {
     // Initializes semaphores
     sem_create(&s_buffer, 1);
     sem_create(&s_item, 1);
+
+    // TODO - Should be total of slots, not 1
     sem_create(&s_vaga, 1);
 
     // Create tasks tarefas

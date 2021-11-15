@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 #include <sys/time.h>
 
 #include "ppos.h"
@@ -470,6 +471,7 @@ void leave_cs(int *lockSemaphore) {
   (*lockSemaphore) = 0;
 }
 
+// Semaphores
 int sem_create(semaphore_t *s, int value) {
     currentTask->blockingPreemption = 1;
 
@@ -590,5 +592,118 @@ int sem_destroy(semaphore_t *s) {
     leave_cs(&(s->locked));
 
     currentTask->blockingPreemption = 0;
+    return 0;
+}
+
+// Message queues
+int mqueue_create(mqueue_t *queue, int max, int size) {
+    if (queue == NULL) {
+        return -1;
+    }
+
+    queue->messagesQueue = (void*)malloc(max * size);
+
+    if (queue->messagesQueue != NULL) {
+        queue->maxMsgs = max;
+        queue->msgSize = size;
+        queue->start = 0;
+        queue->end = 0;
+        queue->size = 0;
+        queue->exitCode = 0;
+
+        sem_create(&(queue->semBuffer), 1);
+        sem_create(&(queue->semItem), 0);
+        sem_create(&(queue->semSlot), max);
+
+        return 0;
+    }
+
+    return -1;
+}
+
+int mqueue_msgs(mqueue_t *queue) {
+    if (queue == NULL) {
+        return -1;
+    }
+
+    if (queue->messagesQueue == NULL) {
+        return -1;
+    }
+
+    return queue->size;
+}
+
+int mqueue_send(mqueue_t *queue, void *msg) {
+    if (queue == NULL) {
+        return -1;
+    }
+
+    if (queue->messagesQueue == NULL) {
+        return -1;
+    }
+
+    if (queue->exitCode) {
+        return -1;
+    }
+
+    sem_down(&(queue->semSlot));
+
+    sem_down(&(queue->semBuffer));
+    int size = mqueue_msgs(queue);
+    if (size < queue->maxMsgs) {
+        memcpy(queue->messagesQueue + (queue->end * queue->msgSize), msg, queue->msgSize);
+        queue->end = (queue->end + 1) % queue->maxMsgs;
+        queue->size++;
+    }
+    sem_up(&(queue->semBuffer));
+
+    sem_up(&(queue->semItem));
+
+    return 0;
+}
+
+int mqueue_recv(mqueue_t *queue, void *msg) {
+    if (queue == NULL) {
+        return -1;
+    }
+
+    if (queue->messagesQueue == NULL) {
+        return -1;
+    }
+
+    if (queue->exitCode) {
+        return -1;
+    }
+
+    sem_down(&(queue->semItem));
+
+    sem_down(&(queue->semBuffer));
+    if (mqueue_msgs(queue) > 0) {
+        memcpy(msg, queue->messagesQueue + (queue->start * queue->msgSize), queue->msgSize);
+        queue->start = (queue->start + 1) % queue->maxMsgs;
+        queue->size--;
+    }
+    sem_up(&(queue->semBuffer));
+
+    sem_up(&(queue->semSlot));
+
+    return 0;
+}
+
+int mqueue_destroy(mqueue_t *queue) {
+    if (queue == NULL) {
+        return -1;
+    }
+
+    if (queue->messagesQueue == NULL) {
+        return -1;
+    }
+
+    sem_destroy(&(queue->semBuffer));
+    sem_destroy(&(queue->semItem));
+    sem_destroy(&(queue->semSlot));
+
+    queue->exitCode = 1;
+
     return 0;
 }

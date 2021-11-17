@@ -597,7 +597,7 @@ int sem_destroy(semaphore_t *s) {
 
 // Message queues
 int mqueue_create(mqueue_t *queue, int max, int size) {
-    if (queue == NULL) {
+    if (queue == NULL || queue->messagesQueue != NULL) {
         return -1;
     }
 
@@ -622,11 +622,7 @@ int mqueue_create(mqueue_t *queue, int max, int size) {
 }
 
 int mqueue_msgs(mqueue_t *queue) {
-    if (queue == NULL) {
-        return -1;
-    }
-
-    if (queue->messagesQueue == NULL) {
+    if (queue == NULL || queue->messagesQueue == NULL) {
         return -1;
     }
 
@@ -634,11 +630,7 @@ int mqueue_msgs(mqueue_t *queue) {
 }
 
 int mqueue_send(mqueue_t *queue, void *msg) {
-    if (queue == NULL) {
-        return -1;
-    }
-
-    if (queue->messagesQueue == NULL) {
+    if (queue == NULL || queue->messagesQueue == NULL) {
         return -1;
     }
 
@@ -646,28 +638,29 @@ int mqueue_send(mqueue_t *queue, void *msg) {
         return -1;
     }
 
-    sem_down(&(queue->semSlot));
+    if (sem_down(&(queue->semSlot)) == -1) {
+        return -1;
+    }
 
-    sem_down(&(queue->semBuffer));
+    if (sem_down(&(queue->semBuffer))) {
+        return -1;
+    }
+
     int size = mqueue_msgs(queue);
     if (size < queue->maxMsgs) {
         memcpy(queue->messagesQueue + (queue->end * queue->msgSize), msg, queue->msgSize);
         queue->end = (queue->end + 1) % queue->maxMsgs;
         queue->size++;
     }
-    sem_up(&(queue->semBuffer));
 
+    sem_up(&(queue->semBuffer));
     sem_up(&(queue->semItem));
 
     return 0;
 }
 
 int mqueue_recv(mqueue_t *queue, void *msg) {
-    if (queue == NULL) {
-        return -1;
-    }
-
-    if (queue->messagesQueue == NULL) {
+    if (queue == NULL || queue->messagesQueue == NULL) {
         return -1;
     }
 
@@ -675,27 +668,32 @@ int mqueue_recv(mqueue_t *queue, void *msg) {
         return -1;
     }
 
-    sem_down(&(queue->semItem));
+    if (sem_down(&(queue->semItem)) == -1) {
+        return -1;
+    }
 
-    sem_down(&(queue->semBuffer));
+    if (sem_down(&(queue->semBuffer)) == -1) {
+        return -1;
+    }
+
     if (mqueue_msgs(queue) > 0) {
         memcpy(msg, queue->messagesQueue + (queue->start * queue->msgSize), queue->msgSize);
         queue->start = (queue->start + 1) % queue->maxMsgs;
         queue->size--;
     }
-    sem_up(&(queue->semBuffer));
 
+    sem_up(&(queue->semBuffer));
     sem_up(&(queue->semSlot));
 
     return 0;
 }
 
 int mqueue_destroy(mqueue_t *queue) {
-    if (queue == NULL) {
+    if (queue == NULL || queue->messagesQueue == NULL) {
         return -1;
     }
 
-    if (queue->messagesQueue == NULL) {
+    if (queue->exitCode) {
         return -1;
     }
 
@@ -704,6 +702,7 @@ int mqueue_destroy(mqueue_t *queue) {
     sem_destroy(&(queue->semSlot));
 
     queue->exitCode = 1;
+    free(queue->messagesQueue);
 
     return 0;
 }

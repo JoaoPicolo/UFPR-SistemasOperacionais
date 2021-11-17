@@ -609,20 +609,17 @@ int mqueue_send(mqueue_t *queue, void *msg) {
         return -1;
     }
 
-    if (sem_down(&(queue->semSlot)) == -1) {
+    if (sem_down(&(queue->semSlot)) == -1 || queue->exitCode) {
         return -1;
     }
 
-    if (sem_down(&(queue->semBuffer))) {
+    if (sem_down(&(queue->semBuffer)) == -1 || queue->exitCode)  {
         return -1;
     }
 
-    int size = mqueue_msgs(queue);
-    if (size < queue->maxMsgs) {
-        memcpy(queue->messagesQueue + (queue->end * queue->msgSize), msg, queue->msgSize);
-        queue->end = (queue->end + 1) % queue->maxMsgs;
-        queue->size++;
-    }
+    memcpy(queue->messagesQueue + (queue->end * queue->msgSize), msg, queue->msgSize);
+    queue->end = (queue->end + 1) % queue->maxMsgs;
+    queue->size++;
 
     sem_up(&(queue->semBuffer));
     sem_up(&(queue->semItem));
@@ -635,19 +632,17 @@ int mqueue_recv(mqueue_t *queue, void *msg) {
         return -1;
     }
 
-    if (sem_down(&(queue->semItem)) == -1) {
+    if (sem_down(&(queue->semItem)) == -1 || queue->exitCode) {
         return -1;
     }
 
-    if (sem_down(&(queue->semBuffer)) == -1) {
+    if (sem_down(&(queue->semBuffer)) == -1 || queue->exitCode) {
         return -1;
     }
 
-    if (mqueue_msgs(queue) > 0) {
-        memcpy(msg, queue->messagesQueue + (queue->start * queue->msgSize), queue->msgSize);
-        queue->start = (queue->start + 1) % queue->maxMsgs;
-        queue->size--;
-    }
+    memcpy(msg, queue->messagesQueue + (queue->start * queue->msgSize), queue->msgSize);
+    queue->start = (queue->start + 1) % queue->maxMsgs;
+    queue->size--;
 
     sem_up(&(queue->semBuffer));
     sem_up(&(queue->semSlot));

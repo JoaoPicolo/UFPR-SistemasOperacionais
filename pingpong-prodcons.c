@@ -27,19 +27,15 @@ void produtor(void *arg) {
         item = rand() % MAX_ITEM;
 
         sem_down(&s_vaga);
-
         sem_down(&s_buffer);
-        if (queue_size((queue_t*) buffer) < MAX_BUFFER) {
-            printf("%s %d\n", (char *)arg, item);
 
-            filaint_t new;
-            new.prev = NULL;
-            new.next = NULL;
-            new.id = item;
-            queue_append((queue_t**) &buffer, (queue_t*)&new);
-        }
+        filaint_t new;
+        new.prev = NULL;
+        new.next = NULL;
+        new.id = item;
+        queue_append((queue_t**) &buffer, (queue_t*)&new);
+
         sem_up(&s_buffer);
-
         sem_up(&s_item);
     }
 }
@@ -47,14 +43,12 @@ void produtor(void *arg) {
 void consumidor(void *arg) {
     while (1) {
         sem_down(&s_item);
-
         sem_down(&s_buffer);
-        if (queue_size((queue_t*) buffer) > 0) {
-            printf("%s %d\n", (char *)arg, buffer->id);
-            queue_remove((queue_t**) &buffer, (queue_t*)buffer);
-        }
-        sem_up(&s_buffer);
 
+        printf("%s %d\n", (char *)arg, buffer->id);
+        queue_remove((queue_t**) &buffer, (queue_t*)buffer);
+
+        sem_up(&s_buffer);
         sem_up(&s_vaga);
         task_sleep(1000);
     }
@@ -67,10 +61,8 @@ int main(int argc, char *argv[]) {
 
     // Initializes semaphores
     sem_create(&s_buffer, 1);
-    sem_create(&s_item, 1);
-
-    // TODO - Should be total of slots, not 1
-    sem_create(&s_vaga, 1);
+    sem_create(&s_item, 0);
+    sem_create(&s_vaga, MAX_BUFFER);
 
     // Create tasks tarefas
     task_create(&p1, produtor, "p1 produziu ");

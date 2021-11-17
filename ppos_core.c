@@ -434,12 +434,7 @@ int task_getprio(task_t *task) {
 int task_join(task_t *task) {
     currentTask->blockingPreemption = 1;
 
-    if(task == NULL) {
-        currentTask->blockingPreemption = 0;
-        return -1;
-    }
-
-    if(task->status == COMPLETED) {
+    if(task == NULL || task->status == COMPLETED) {
         currentTask->blockingPreemption = 0;
         return -1;
     }
@@ -475,12 +470,7 @@ void leave_cs(int *lockSemaphore) {
 int sem_create(semaphore_t *s, int value) {
     currentTask->blockingPreemption = 1;
 
-    if (s == NULL) {
-        currentTask->blockingPreemption = 0;
-        return -1;
-    }
-
-    if (s->initialized) {
+    if (s == NULL || s->initialized) {
         currentTask->blockingPreemption = 0;
         return -1;
     }
@@ -498,12 +488,7 @@ int sem_create(semaphore_t *s, int value) {
 int sem_down(semaphore_t *s) {
     currentTask->blockingPreemption = 1;
 
-    if (s == NULL) {
-        currentTask->blockingPreemption = 0;
-        return -1;
-    }
-
-    if (s->exitCode == -1 || s->initialized == 0) {
+    if (s == NULL || s->exitCode == -1 || s->initialized == 0) {
         currentTask->blockingPreemption = 0;
         return -1;
     }
@@ -532,12 +517,7 @@ int sem_down(semaphore_t *s) {
 int sem_up(semaphore_t *s) {
     currentTask->blockingPreemption = 1;
 
-    if (s == NULL) {
-        currentTask->blockingPreemption = 0;
-        return -1;
-    }
-
-    if (s->exitCode == -1 || s->initialized == 0) {
+    if (s == NULL || s->exitCode == -1 || s->initialized == 0) {
         currentTask->blockingPreemption = 0;
         return -1;
     }
@@ -576,12 +556,7 @@ void freeSemaphoreQueue(semaphore_t *s) {
 int sem_destroy(semaphore_t *s) {
     currentTask->blockingPreemption = 1;
 
-    if (s == NULL) {
-        currentTask->blockingPreemption = 0;
-        return -1;
-    }
-
-    if (s->exitCode == -1 || s->initialized == 0) {
+    if (s == NULL || s->exitCode == -1 || s->initialized == 0) {
         currentTask->blockingPreemption = 0;
         return -1;
     }
@@ -630,11 +605,7 @@ int mqueue_msgs(mqueue_t *queue) {
 }
 
 int mqueue_send(mqueue_t *queue, void *msg) {
-    if (queue == NULL || queue->messagesQueue == NULL) {
-        return -1;
-    }
-
-    if (queue->exitCode) {
+    if (queue->exitCode || queue == NULL || queue->messagesQueue == NULL) {
         return -1;
     }
 
@@ -660,11 +631,7 @@ int mqueue_send(mqueue_t *queue, void *msg) {
 }
 
 int mqueue_recv(mqueue_t *queue, void *msg) {
-    if (queue == NULL || queue->messagesQueue == NULL) {
-        return -1;
-    }
-
-    if (queue->exitCode) {
+    if (queue->exitCode || queue == NULL || queue->messagesQueue == NULL) {
         return -1;
     }
 
@@ -689,11 +656,7 @@ int mqueue_recv(mqueue_t *queue, void *msg) {
 }
 
 int mqueue_destroy(mqueue_t *queue) {
-    if (queue == NULL || queue->messagesQueue == NULL) {
-        return -1;
-    }
-
-    if (queue->exitCode) {
+    if (queue->exitCode || queue == NULL || queue->messagesQueue == NULL) {
         return -1;
     }
 
